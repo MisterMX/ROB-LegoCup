@@ -8,23 +8,33 @@
 #define STATE_DEFAULT 0
 #define STATE_TURN_LEFT 1
 #define STATE_TURN_RIGHT 2
+#define STATE_END -1
+
+#define SPEED_STRAIGHT 30
+#define SPEED_TURN 20
 
 TLegoColors lastLeftColor;
 TLegoColors lastRightColor;
 
 int currentState = STATE_DEFAULT;
 
+// predefined methods
+void stateDefault();
+void stateTurnLeft();
+void stateTurnRight();
+
+
 void stateDefault()
 {
-	TLegoColors colorLeft = getColorName(sensorColorLeft);
+		TLegoColors colorLeft = getColorName(sensorColorLeft);
 		TLegoColors colorRight = getColorName(sensorColorRight);
 
 		if (colorLeft == colorWhite
 			&& colorRight == colorWhite)
 		{
 			// drive straight
-			displayTextLine(3, "2Weiﬂ");
-			setMotorSync(left, right, 0, 30);
+			displayTextLine(3, "2 white");
+			setMotorSync(left, right, 0, SPEED_STRAIGHT);
 		}
 		/* else if(colorLeft == colorGreen)
 		{
@@ -34,30 +44,65 @@ void stateDefault()
 		else if(colorLeft == colorBlack
 			&&colorRight == colorBlack)
 		{
-			displayTextLine(3, "2Black");
+			displayTextLine(3, "2 black");
 
 			if(lastRightColor == colorBlack && lastLeftColor != colorBlack)
-				setMotorSync(left, right, 100, 10);
+				setMotorSync(left, right, 100, SPEED_TURN);
 			else if( lastRightColor != colorBlack && lastLeftColor == colorBlack)
-				setMotorSync(left, right, -100, 10);
+				setMotorSync(left, right, -100, SPEED_TURN);
 			else
-				setMotorSync(left,right,0,30);
+				setMotorSync(left,right, 0, SPEED_STRAIGHT);
+		}
+		else if (colorLeft == colorGreen)
+		{
+			// turn left 90 degrees
+			currentState = STATE_TURN_LEFT;
+		}
+		else if (colorRight == colorGreen)
+		{
+			// turn right 90 degrees
+			currentState = STATE_TURN_RIGHT;
 		}
 		else if (colorLeft == colorBlack)
 		{
 			// turn right
 			displayTextLine(3, "LeftBlack");
-			setMotorSync(left, right, -100, 20);
+			setMotorSync(left, right, -100, SPEED_TURN);
 		}
 		else if (colorRight == colorBlack)
 		{
 			// turn left
 			displayTextLine(3, "RightBlack");
-			setMotorSync(left, right, 100, 20);
+			setMotorSync(left, right, 100, SPEED_TURN);
 		}
 
 		lastLeftColor = colorLeft;
 		lastRightColor = colorRight;
+}
+
+void stateTurnLeft()
+{
+	// Move the center of the robot to the mid of the crossing.
+	setMotorSyncEncoder(left, right, 0, 125, SPEED_STRAIGHT);
+	while (getMotorRunning(left) != 0)
+		displayString(2, "Left encoder: %d", getMotorEncoder(left));
+
+	// Turn left.
+	setMotorSyncEncoder(left, right, -100, 535, SPEED_TURN);
+	while (getMotorRunning(left) != 0)
+		displayString(2, "Left encoder: %d", getMotorEncoder(left));
+
+	// Drive off the crossing.
+	setMotorSyncEncoder(left, right, 0, 70, SPEED_STRAIGHT);
+	while (getMotorRunning(left) != 0)
+		displayString(2, "Left encoder: %d", getMotorEncoder(left));
+
+	currentState = STATE_DEFAULT;
+}
+
+void stateTurnRight()
+{
+
 }
 
 task main()
@@ -72,9 +117,15 @@ task main()
 				break;
 
 			case STATE_TURN_LEFT:
+				stateTurnLeft();
 				break;
 
 			case STATE_TURN_RIGHT:
+				stateTurnRight();
+				break;
+
+			case STATE_END:
+				run = false;
 				break;
 		}
 	}
