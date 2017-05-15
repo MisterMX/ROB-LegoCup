@@ -4,9 +4,9 @@ TLegoColors getColorNameByHSB(tSensors nDeviceIndex, int lineNumber)
 {
 	long hue = getColorHue(nDeviceIndex);
 	//long sat = getColorSaturation(nDeviceIndex);
-	short val = getColorAmbient(nDeviceIndex);
+	short val = getColorReflected(nDeviceIndex);
 
-	displayString(lineNumber, "H: %d; S: %d; V: %d", hue, 0, val);
+	displayString(lineNumber, "H: %d3; S: %d3; V: %d", hue, 0, val);
 
 	if(hue > 20 && hue < 35)
 		return colorWhite;
@@ -17,7 +17,7 @@ TLegoColors getColorNameByHSB(tSensors nDeviceIndex, int lineNumber)
 	return colorNone;
 }
 
-TLegoColors getLegoColorFromRGB(tSensors nDevice)
+TLegoColors getLegoColorFromRGB(tSensors nDevice, int lineNumber)
 {
 	long red;
 	long green;
@@ -25,15 +25,13 @@ TLegoColors getLegoColorFromRGB(tSensors nDevice)
 
 	getColorRGB(nDevice, red, green, blue);
 
-	displayString(4, "R: %d", red);
-	displayString(5, "G: %d", green);
-	displayString(6, "B: %d", blue);
+	displayString(lineNumber, "R: %d; G: %d; B: %d", red, green, blue);
 
-	if(red > 225 && green > 225 && blue > 225)
+	if(red > 50)
 		return colorWhite;
-	if(red < 30 && green < 30 && blue < 30)
+	if(blue > 15000)
 		return colorBlack;
-	if(green > red && green > blue)
+	if(blue > 2000 && red < 15)
 		return colorGreen;
 	return colorNone;
 }
