@@ -27,11 +27,18 @@ TLegoColors getLegoColorFromRGB(tSensors nDevice, int lineNumber)
 
 	displayString(lineNumber, "R: %d; G: %d; B: %d", red, green, blue);
 
-	if(red > 50)
+	if(red > 50){
+		displayTextLine(lineNumber+2, "White");
 		return colorWhite;
-	if(blue > 15000)
+	}
+	if(abs(green-red) < 10 && red < 35){
+		displayTextLine(lineNumber+2, "Black");
 		return colorBlack;
-	if(blue > 2000 && red < 15)
+	}
+	if(green >15 && red < 15){
+		displayTextLine(lineNumber+2, "green");
 		return colorGreen;
-	return colorNone;
+	}
+	displayTextLine(lineNumber+2, "None");
+	return colorWhite;
 }

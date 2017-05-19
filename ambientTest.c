@@ -12,7 +12,7 @@
 #define STATE_TURN_RIGHT 2
 #define STATE_END -1
 
-#define SPEED_STRAIGHT 30
+#define SPEED_STRAIGHT 25
 #define SPEED_TURN 20
 
 TLegoColors lastLeftColor;
@@ -37,7 +37,7 @@ void stateDefault()
 			displayTextLine(4, "2 white");
 			setMotorSync(left, right, 0, SPEED_STRAIGHT);
 		}
-		else if(colorLeft == colorWhite
+		else if(colorLeft == colorBlack
 			&& colorRight == colorBlack)
 		{
 			displayTextLine(4, "2 black");
@@ -51,13 +51,20 @@ void stateDefault()
 		}
 		else if (colorLeft == colorGreen)
 		{
-			// turn left 90 degrees
-			//currentState = STATE_TURN_LEFT;
+			setMotorSync(left,right,0,0);
+			if(lastLeftColor == colorGreen){
+				// turn left 90 degrees
+				currentState = STATE_TURN_LEFT;
+			}
 		}
 		else if (colorRight == colorGreen)
 		{
-			// turn right 90 degrees
-			//currentState = STATE_TURN_RIGHT;
+			setMotorSync(left,right,0,0);
+			if(lastRightColor == colorGreen){
+				// turn right 90 degrees
+				currentState = STATE_TURN_RIGHT;
+			}
+
 		}
 		else if (colorLeft == colorBlack)
 		{
@@ -79,27 +86,58 @@ void stateDefault()
 void stateTurnLeft()
 {
 	// Move the center of the robot to the mid of the crossing.
-	setMotorSyncEncoder(left, right, 0, 125, SPEED_STRAIGHT);
+	setMotorSyncEncoder(left, right, 0, 40, SPEED_STRAIGHT/2);
 	while (getMotorRunning(left) != 0)
 		displayString(4, "Left encoder: %d", getMotorEncoder(left));
 
-	// Turn left.
-	setMotorSyncEncoder(left, right, -100, 535, SPEED_TURN);
-	while (getMotorRunning(left) != 0)
-		displayString(4, "Left encoder: %d", getMotorEncoder(left));
+	TLegoColors colorLeft = getLegoColorFromRGB(sensorColorLeft, 2);
+	if( colorLeft == colorWhite){
+		currentState = STATE_DEFAULT;
+			// Turn right.
+		setMotorSyncEncoder(left, right, 100, 35, SPEED_TURN);
+		while (getMotorRunning(left) != 0)
+			displayString(2, "Left encoder: %d", getMotorEncoder(left));
+	}
+	else
+	{
+		setMotorSyncEncoder(left, right, 0, 100, SPEED_STRAIGHT);
+		while (getMotorRunning(left) != 0)
+			displayString(4, "Left encoder: %d", getMotorEncoder(left));
 
-	// Drive off the crossing.
-	setMotorSyncEncoder(left, right, 0, 70, SPEED_STRAIGHT);
-	while (getMotorRunning(left) != 0)
-		displayString(4, "Left encoder: %d", getMotorEncoder(left));
+		// Turn left.
+		setMotorSyncEncoder(left, right, -100, 535, SPEED_TURN);
+		while (getMotorRunning(left) != 0)
+			displayString(4, "Left encoder: %d", getMotorEncoder(left));
 
-	currentState = STATE_DEFAULT;
+		// Drive off the crossing.
+		setMotorSyncEncoder(left, right, 0, 70, SPEED_STRAIGHT);
+		while (getMotorRunning(left) != 0)
+			displayString(4, "Left encoder: %d", getMotorEncoder(left));
+
+		currentState = STATE_DEFAULT;
+	}
 }
 
 void stateTurnRight()
 {
 	// Move the center of the robot to the mid of the crossing.
-	setMotorSyncEncoder(left, right, 0, 125, SPEED_STRAIGHT);
+	setMotorSyncEncoder(left, right, 0, 40, SPEED_STRAIGHT);
+	while (getMotorRunning(left) != 0)
+		displayString(2, "Left encoder: %d", getMotorEncoder(left));
+
+	TLegoColors colorRight = getLegoColorFromRGB(sensorColorRight, 3);
+	if( colorRight == colorWhite)
+	{
+		currentState = STATE_DEFAULT;
+		// Turn right.
+		setMotorSyncEncoder(left, right, -100, 35, SPEED_TURN);
+		while (getMotorRunning(right) != 0)
+			displayString(2, "Left encoder: %d", getMotorEncoder(right));
+	}
+	else
+	{
+		// Move the center of the robot to the mid of the crossing.
+	setMotorSyncEncoder(left, right, 0, 100, SPEED_STRAIGHT);
 	while (getMotorRunning(left) != 0)
 		displayString(2, "Left encoder: %d", getMotorEncoder(left));
 
@@ -114,6 +152,7 @@ void stateTurnRight()
 		displayString(2, "Left encoder: %d", getMotorEncoder(left));
 
 	currentState = STATE_DEFAULT;
+	}
 }
 
 task main()
