@@ -87,6 +87,9 @@ void stateDefault()
 			displayTextLine(4, "RightBlack");
 			setMotorSync(left, right, POWER_TURN_LEFT, SPEED_TURN);
 		}
+		else if(colorRight == colorYellow && colorLeft == colorYellow){
+			currentState = STATE_SEARCH_BALLS;
+		}
 
 		lastLeftColor = colorLeft;
 		lastRightColor = colorRight;
@@ -215,6 +218,12 @@ void searchTargetArea()
 
 }
 
+void raiseBalls()
+{
+	resetMotorEncoder(rotor);
+	setMotorTarget(rotor,90,10);
+}
+
 void catchBall()
 {
 	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 300, SPEED_STRAIGHT);
@@ -226,6 +235,9 @@ void catchBall()
 
 void searchBalls()
 {
+
+	raiseBalls();
+	/*
 	float distanze = getUSDistance(sensorUltrasonic);
 	if(distanze < 8){
 		// Turn Right.
@@ -244,8 +256,7 @@ void searchBalls()
 		if(distanze > 10){
 			catchBall();
 		}
-	}
-
+	}*/
 	//currentState = STATE_DEFAULT;
 }
 

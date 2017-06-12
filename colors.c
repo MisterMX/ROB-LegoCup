@@ -10,6 +10,10 @@ TLegoColors getLegoColorFromRGB(tSensors nDevice, int lineNumber)
 
 	displayString(lineNumber, "R: %d; G: %d; B: %d", red, green, blue);
 
+	if(red > 90 && blue > 90 && green > 90){
+		displayTextLine(lineNumber+2, "Silver");
+		return colorYellow;
+	}
 	if(red > 50){
 		displayTextLine(lineNumber+2, "White");
 		return colorWhite;
