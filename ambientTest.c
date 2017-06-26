@@ -1,6 +1,7 @@
 #pragma config(Sensor, S1,     sensorColorLeft, sensorEV3_Color, modeEV3Color_Color)
-#pragma config(Sensor, S4,     sensorColorRight, sensorEV3_Color, modeEV3Color_Color)
+#pragma config(Sensor, S2,     sensorGroundDistance, sensorEV3_Ultrasonic)
 #pragma config(Sensor, S3,     sensorUltrasonic, sensorEV3_Ultrasonic)
+#pragma config(Sensor, S4,     sensorColorRight, sensorEV3_Color, modeEV3Color_Color)
 #pragma config(Motor,  motorA,          left,          tmotorEV3_Large, PIDControl, encoder)
 #pragma config(Motor,  motorB,          right,         tmotorEV3_Large, PIDControl, encoder)
 #pragma config(Motor,  motorC,          rotor,         tmotorEV3_Medium, PIDControl, encoder)
@@ -40,8 +41,18 @@ void stateTurnLeft();
 void stateTurnRight();
 void dropBalls();
 
+bool armUp = false;
+
 void stateDefault()
 {
+		float groundDistance = getUSDistance(sensorGroundDistance);
+		if(groundDistance < 3.5 && !armUp)
+		{
+				armUp = true;
+				resetMotorEncoder(rotor);
+				setMotorTarget(rotor,ARM_DRIVE_DOWN/3, 50);
+		}
+
 		TLegoColors colorLeft = getLegoColorFromRGB(sensorColorLeft, 2);
 		TLegoColors colorRight = getLegoColorFromRGB(sensorColorRight, 3);
 
@@ -105,6 +116,7 @@ void stateDefault()
 		{
 			currentState = STATE_OBSTACLE;
 		}
+
 }
 
 void stateTurnLeft()
