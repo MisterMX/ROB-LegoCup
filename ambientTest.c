@@ -1,5 +1,5 @@
 #pragma config(Sensor, S1,     sensorColorLeft, sensorEV3_Color, modeEV3Color_Color)
-#pragma config(Sensor, S2,     sensorGroundDistance, sensorEV3_Ultrasonic)
+#pragma config(Sensor, S2,     touch,          sensorNone)
 #pragma config(Sensor, S3,     sensorUltrasonic, sensorEV3_Ultrasonic)
 #pragma config(Sensor, S4,     sensorColorRight, sensorEV3_Color, modeEV3Color_Color)
 #pragma config(Motor,  motorA,          left,          tmotorEV3_Large, PIDControl, encoder)
@@ -10,6 +10,8 @@
 
 #include "colors.h"
 #include "colors.c"
+
+#define UINT unsigned int
 
 #define STATE_DEFAULT 0
 #define STATE_TURN_LEFT 1
@@ -30,6 +32,8 @@
 #define CATCH_BALL_POSITION 1100
 #define DROP_BALL_POSITION -1100
 
+#define US_SENSOR_BUFFER_SIZE 3
+
 TLegoColors lastLeftColor;
 TLegoColors lastRightColor;
 
@@ -40,19 +44,13 @@ void stateDefault();
 void stateTurnLeft();
 void stateTurnRight();
 void dropBalls();
+void shiftArray(float* array, const UINT size);
 
 bool armUp = false;
+float rotorSensorValues[US_SENSOR_BUFFER_SIZE];
 
 void stateDefault()
 {
-		float groundDistance = getUSDistance(sensorGroundDistance);
-		if(groundDistance < 3.5 && !armUp)
-		{
-				armUp = true;
-				resetMotorEncoder(rotor);
-				setMotorTarget(rotor,ARM_DRIVE_DOWN/3, 50);
-		}
-
 		TLegoColors colorLeft = getLegoColorFromRGB(sensorColorLeft, 2);
 		TLegoColors colorRight = getLegoColorFromRGB(sensorColorRight, 3);
 
@@ -111,11 +109,43 @@ void stateDefault()
 		lastLeftColor = colorLeft;
 		lastRightColor = colorRight;
 
+		//float distance2 = getUSDistance(sensorUltrasonicHorizontal);
 		float distanze = getUSDistance(sensorUltrasonic);
+		displayString(7, "Distance D: %f", distanze);
+		//displayString(8, "Distance H: %f", distance2);
+		shiftArray(rotorSensorValues, US_SENSOR_BUFFER_SIZE);
+		rotorSensorValues[0] = distanze;
+
+		bool driveUp = true;
+		for(int i = 0; i < US_SENSOR_BUFFER_SIZE; i++){
+			if(rotorSensorValues[i] < 250)
+			{
+				driveUp = false;
+			}
+		}
+
 		if(distanze < 8)
 		{
 			currentState = STATE_OBSTACLE;
 		}
+		/* else if(driveUp && !armUp)
+		{
+			setMotorSync(left,right,0,0);
+			armUp = true;
+			resetMotorEncoder(rotor);
+			setMotorTarget(rotor,ARM_DRIVE_DOWN/2, 20);
+			while(getMotorRunning(rotor)
+				displayString(4,"rotor drive up");
+		}
+		else if(rotorSensorValues[0] < 90 && rotorSensorValues[1] < 90 && armUp)
+		{
+			setMotorSync(left,right,0,0);
+			armUp = false;
+			resetMotorEncoder(rotor);
+			setMotorTarget(rotor,ARM_DRIVE_UP/2, 20);
+			while(getMotorRunning(rotor)
+				displayString(4,"rotor drive up");
+		}*/
 
 }
 
@@ -136,19 +166,26 @@ void stateTurnLeft()
 	}
 	else
 	{
-		setMotorSyncEncoder(left, right, POWER_STRAIGHT, 100, SPEED_STRAIGHT);
+		setMotorSyncEncoder(left, right, POWER_STRAIGHT, 120, SPEED_STRAIGHT);
 		while (getMotorRunning(left) != 0)
 			displayString(4, "Left encoder: %d", getMotorEncoder(left));
 
 		// Turn left.
-		setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 500, SPEED_TURN);
-		while (getMotorRunning(left) != 0)
-			displayString(4, "Left encoder: %d", getMotorEncoder(left));
-
-		// Drive off the crossing.
-		setMotorSyncEncoder(left, right, POWER_STRAIGHT, 70, SPEED_STRAIGHT);
-		while (getMotorRunning(left) != 0)
-			displayString(4, "Left encoder: %d", getMotorEncoder(left));
+		setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 600, SPEED_TURN);
+		bool getLine = false;
+		while (getMotorRunning(right) != 0)
+		{
+			TLegoColors colorLeft = getLegoColorFromRGB(sensorColorLeft, 3);
+			if(colorLeft == colorBlack)
+			{
+				getLine = true;
+			}
+			else if(colorLeft == colorWhite && getLine)
+			{
+				setMotorSync(right, left, 0,0);
+				break;
+			}
+		}
 
 		currentState = STATE_DEFAULT;
 	}
@@ -173,19 +210,26 @@ void stateTurnRight()
 	else
 	{
 		// Move the center of the robot to the mid of the crossing.
-	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 100, SPEED_STRAIGHT);
+	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 120, SPEED_STRAIGHT);
 	while (getMotorRunning(left) != 0)
 		displayString(2, "Left encoder: %d", getMotorEncoder(left));
 
 	// Turn right.
-	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 500, SPEED_TURN);
+	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 600, SPEED_TURN);
+	bool getLine = false;
 	while (getMotorRunning(left) != 0)
-		displayString(2, "Left encoder: %d", getMotorEncoder(left));
-
-	// Drive off the crossing.
-	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 70, SPEED_STRAIGHT);
-	while (getMotorRunning(left) != 0)
-		displayString(2, "Left encoder: %d", getMotorEncoder(left));
+	{
+		TLegoColors colorRight = getLegoColorFromRGB(sensorColorRight, 3);
+		if(colorRight == colorBlack)
+		{
+			getLine = true;
+		}
+		else if(colorRight == colorWhite && getLine)
+		{
+				setMotorSync(right, left, 0,0);
+				break;
+		}
+	}
 
 	currentState = STATE_DEFAULT;
 	}
@@ -194,37 +238,49 @@ void stateTurnRight()
 void stateObstacle()
 {
 	// Turn left.
-	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 535, SPEED_TURN);
+	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 500, SPEED_TURN);
 	while (getMotorRunning(left) != 0)
 		displayString(4, "Left encoder: %d", getMotorEncoder(left));
 
 	// Move away from line.
-	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 400, SPEED_STRAIGHT);
+	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 500, SPEED_STRAIGHT);
 	while (getMotorRunning(left) != 0)
 		displayString(2, "Left encoder: %d", getMotorEncoder(left));
 
 	// Turn Right.
-	setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 535, SPEED_TURN);
+	setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 500, SPEED_TURN);
 	while (getMotorRunning(left) != 0)
 		displayString(4, "Left encoder: %d", getMotorEncoder(left));
 
 		// Move on the obstacle side.
-	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 1200, SPEED_STRAIGHT);
+	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 1500, SPEED_STRAIGHT);
 	while (getMotorRunning(left) != 0)
 		displayString(2, "Left encoder: %d", getMotorEncoder(left));
 
 		// Turn Right.
-	setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 535, SPEED_TURN);
+	setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 500, SPEED_TURN);
 	while (getMotorRunning(left) != 0)
 		displayString(4, "Left encoder: %d", getMotorEncoder(left));
 
-		// Move back to line.
-	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 400, SPEED_STRAIGHT);
-	while (getMotorRunning(left) != 0)
-		displayString(2, "Left encoder: %d", getMotorEncoder(left));
 
-		// Turn left.
-	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 535, SPEED_TURN);
+		// Move back to line.
+	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 1200, SPEED_STRAIGHT);
+	bool getLine = false;
+	while (getMotorRunning(left) != 0)
+	{
+		TLegoColors colorLeft = getLegoColorFromRGB(sensorColorLeft, 3);
+		if(colorLeft == colorBlack)
+		{
+				getLine = true;
+		}
+		if(getLine && colorLeft == colorWhite)
+		{
+			break;
+		}
+	}
+
+	// Turn Right.
+	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 100, SPEED_TURN);
 	while (getMotorRunning(left) != 0)
 		displayString(4, "Left encoder: %d", getMotorEncoder(left));
 
@@ -318,6 +374,15 @@ void searchBalls()
 	//currentState = STATE_DEFAULT;
 }
 
+void shiftArray(float* array, const UINT size)
+{
+		for(int i = size - 1; i > 0; i--)
+		{
+			array[i] = array[i-1];
+		}
+		array[0] = 0;
+}
+
 task main()
 {
 	bool run = true;
@@ -361,4 +426,5 @@ task main()
 				break;
 		}
 	}
+	displayTextLine(1, "STATE: End");
 }
