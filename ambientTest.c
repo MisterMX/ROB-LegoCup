@@ -1,5 +1,5 @@
 #pragma config(Sensor, S1,     sensorColorLeft, sensorEV3_Color, modeEV3Color_Color)
-#pragma config(Sensor, S2,     touch,          sensorNone)
+#pragma config(Sensor, S2,     sensorGyro,     sensorEV3_Gyro, modeEV3Gyro_RateAndAngle)
 #pragma config(Sensor, S3,     sensorUltrasonic, sensorEV3_Ultrasonic)
 #pragma config(Sensor, S4,     sensorColorRight, sensorEV3_Color, modeEV3Color_Color)
 #pragma config(Motor,  motorA,          left,          tmotorEV3_Large, PIDControl, encoder)
@@ -13,6 +13,7 @@
 
 #define UINT unsigned int
 
+#define STATE_CALIBRATE_GYRO 90
 #define STATE_DEFAULT 0
 #define STATE_TURN_LEFT 1
 #define STATE_TURN_RIGHT 2
@@ -37,7 +38,9 @@
 TLegoColors lastLeftColor;
 TLegoColors lastRightColor;
 
-int currentState = STATE_DEFAULT;
+int currentState = STATE_CALIBRATE_GYRO;
+
+long lastDegrees = 0;
 
 // predefined methods
 void stateDefault();
@@ -123,6 +126,48 @@ void stateDefault()
 				driveUp = false;
 			}
 		}
+
+		if (time1[T1] > 1000)
+		{
+
+		long degrees = getGyroDegrees(sensorGyro) % 90;
+		//long heading = getGyroHeading(sensorGyro) % 90;
+		//long rate = getGyroRate(sensorGyro);
+
+		displayString(8, "degrees: %ld", degrees);
+		//displayString(8, "heading: %ld", heading);
+		//displayString(9, "rate: %ld", rate);
+
+		long degreesDiff = degrees - lastDegrees;
+		displayString(9, "degrees: %ld", degreesDiff);
+
+		if (degreesDiff > 10 && !armUp)
+		{
+				// move arm up
+			setMotorSync(left,right,0,0);
+			armUp = false;
+			resetMotorEncoder(rotor);
+			setMotorTarget(rotor,ARM_DRIVE_UP/2, 20);
+
+			while(getMotorRunning(rotor))
+				displayString(4,"rotor drive up");
+		}
+		else if (degreesDiff < -10  && armUp)
+		{
+			// move arm down
+			setMotorSync(left,right,0,0);
+			armUp = true;
+			resetMotorEncoder(rotor);
+			setMotorTarget(rotor,ARM_DRIVE_DOWN/2, 20);
+
+			while(getMotorRunning(rotor))
+				displayString(4,"rotor drive down");
+		}
+
+		lastDegrees = degrees;
+
+		clearTimer(T1);
+	}
 
 		if(distanze < 8)
 		{
@@ -383,6 +428,24 @@ void shiftArray(float* array, const UINT size)
 		array[0] = 0;
 }
 
+void calibrateGyro()
+{
+	// Switching the modes will cause the gyro sensor to recalibrate.
+	getGyroRate(sensorGyro);
+
+	resetGyro(sensorGyro);
+	sleep(1000);
+
+	getGyroDegrees(sensorGyro);
+
+	resetGyro(sensorGyro);
+	sleep(1000);
+
+	lastDegrees = getGyroDegrees(sensorGyro);
+
+	currentState = STATE_DEFAULT;
+}
+
 task main()
 {
 	bool run = true;
@@ -420,11 +483,15 @@ task main()
 				searchBalls();
 				break;
 
+			case STATE_CALIBRATE_GYRO:
+				displayTextLine(1, "STATE: Calibrate Gyro");
+				calibrateGyro();
+				break;
+
 			case STATE_END:
 				displayTextLine(1, "STATE: End");
 				run = false;
 				break;
 		}
 	}
-	displayTextLine(1, "STATE: End");
 }
