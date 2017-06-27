@@ -48,6 +48,8 @@ void stateTurnLeft();
 void stateTurnRight();
 void dropBalls();
 void shiftArray(float* array, const UINT size);
+void driveToNextWall();
+bool checkIsWall();
 
 bool armUp = false;
 float rotorSensorValues[US_SENSOR_BUFFER_SIZE];
@@ -141,27 +143,33 @@ void stateDefault()
 		long degreesDiff = degrees - lastDegrees;
 		displayString(9, "degrees: %ld", degreesDiff);
 
-		if (degreesDiff > 10 && !armUp)
+		if (degreesDiff < -10 && !armUp)
 		{
 				// move arm up
 			setMotorSync(left,right,0,0);
-			armUp = false;
+			armUp = true;
 			resetMotorEncoder(rotor);
-			setMotorTarget(rotor,ARM_DRIVE_UP/2, 20);
-
+			setMotorTarget(rotor , 500, 20);
 			while(getMotorRunning(rotor))
 				displayString(4,"rotor drive up");
 		}
-		else if (degreesDiff < -10  && armUp)
+		else if (degreesDiff > 10  && armUp)
 		{
-			// move arm down
 			setMotorSync(left,right,0,0);
-			armUp = true;
-			resetMotorEncoder(rotor);
-			setMotorTarget(rotor,ARM_DRIVE_DOWN/2, 20);
 
+			setMotorSyncEncoder(left, right, POWER_STRAIGHT, 100, SPEED_STRAIGHT/2);
+			while (getMotorRunning(left) != 0)
+			displayString(4, "Left encoder: %d", getMotorEncoder(left));
+
+
+			armUp = false;
+			resetMotorEncoder(rotor);
+			// move arm down
+			setMotorTarget(rotor,-500, 20);
 			while(getMotorRunning(rotor))
 				displayString(4,"rotor drive down");
+
+				currentState = STATE_CALIBRATE_GYRO;
 		}
 
 		lastDegrees = degrees;
@@ -169,7 +177,7 @@ void stateDefault()
 		clearTimer(T1);
 	}
 
-		if(distanze < 8)
+		if(distanze < 4)
 		{
 			currentState = STATE_OBSTACLE;
 		}
@@ -394,8 +402,33 @@ void catchBall()
 
 void searchBalls()
 {
+	setMotorSync(left,right,0, 0);
+	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 500, SPEED_STRAIGHT);
+	while (getMotorRunning(left) != 0)
+		displayString(2, "Left encoder: %d", getMotorEncoder(left));
 
-	raiseBalls();
+			// Turn Right.
+	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 500, SPEED_TURN);
+	while (getMotorRunning(left) != 0)
+		displayString(4, "Left encoder: %d", getMotorEncoder(left));
+
+	int radius = 0;
+	while(radius < 800)
+	{
+			setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 20, SPEED_TURN);
+			while (getMotorRunning(left) != 0)
+				displayString(4, "Left encoder: %d", getMotorEncoder(left));
+			float distanze = getUSDistance(sensorUltrasonic);
+			if(distanze < 35 )
+				break;
+			displayString(9,"Distance: %f", distanze);
+			radius += 20;
+	}
+	driveToNextWall();
+
+	currentState = STATE_END;
+
+	//raiseBalls();
 	/*
 	float distanze = getUSDistance(sensorUltrasonic);
 	if(distanze < 8){
@@ -417,6 +450,41 @@ void searchBalls()
 		}
 	}*/
 	//currentState = STATE_DEFAULT;
+}
+
+void driveToNextWall()
+{
+	bool search = true;
+	while(search)
+	{
+		setMotorSyncEncoder(left, right, POWER_STRAIGHT, 100, SPEED_STRAIGHT);
+		while (getMotorRunning(left) != 0)
+			displayString(4, "Left encoder: %d", getMotorEncoder(left));
+		float distanze = getUSDistance(sensorUltrasonic);
+		if(distanze < 10 )
+		{
+			if(checkIsWall())
+			{
+				search = false;
+			}
+			else{
+				search = false;
+				raiseBalls();
+			}
+		}
+	}
+}
+
+bool checkIsWall()
+{
+	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 100, SPEED_TURN);
+	while (getMotorRunning(left) != 0)
+		displayString(4, "Left encoder: %d", getMotorEncoder(left));
+	sleep(50);
+	float distance2 = getUSDistance(sensorUltrasonic);
+	if(distance2 > 20)
+		return true;
+	return false;
 }
 
 void shiftArray(float* array, const UINT size)
