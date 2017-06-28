@@ -177,40 +177,21 @@ void stateDefault()
 		clearTimer(T1);
 	}
 
-		if(distanze < 4)
-		{
-			currentState = STATE_OBSTACLE;
-		}
-		/* else if(driveUp && !armUp)
-		{
-			setMotorSync(left,right,0,0);
-			armUp = true;
-			resetMotorEncoder(rotor);
-			setMotorTarget(rotor,ARM_DRIVE_DOWN/2, 20);
-			while(getMotorRunning(rotor)
-				displayString(4,"rotor drive up");
-		}
-		else if(rotorSensorValues[0] < 90 && rotorSensorValues[1] < 90 && armUp)
-		{
-			setMotorSync(left,right,0,0);
-			armUp = false;
-			resetMotorEncoder(rotor);
-			setMotorTarget(rotor,ARM_DRIVE_UP/2, 20);
-			while(getMotorRunning(rotor)
-				displayString(4,"rotor drive up");
-		}*/
-
+	if(distanze < 4)
+	{
+		currentState = STATE_OBSTACLE;
+	}
 }
 
 void stateTurnLeft()
 {
 	// Move the center of the robot to the mid of the crossing.
-	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 60, SPEED_STRAIGHT/2);
+	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 50, SPEED_STRAIGHT/2);
 	while (getMotorRunning(left) != 0)
 		displayString(4, "Left encoder: %d", getMotorEncoder(left));
 
 	TLegoColors colorLeft = getLegoColorFromRGB(sensorColorLeft, 2);
-	if( colorLeft == colorWhite){
+	if( colorLeft != colorBlack){
 		currentState = STATE_DEFAULT;
 			// Turn right.
 		setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 35, SPEED_TURN);
@@ -247,12 +228,12 @@ void stateTurnLeft()
 void stateTurnRight()
 {
 	// Move the center of the robot to the mid of the crossing.
-	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 60, SPEED_STRAIGHT);
+	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 50, SPEED_STRAIGHT);
 	while (getMotorRunning(left) != 0)
 		displayString(2, "Left encoder: %d", getMotorEncoder(left));
 
 	TLegoColors colorRight = getLegoColorFromRGB(sensorColorRight, 3);
-	if( colorRight == colorWhite)
+	if( colorRight != colorBlack)
 	{
 		currentState = STATE_DEFAULT;
 		// Turn left.
@@ -263,25 +244,25 @@ void stateTurnRight()
 	else
 	{
 		// Move the center of the robot to the mid of the crossing.
-	setMotorSyncEncoder(left, right, POWER_STRAIGHT, 120, SPEED_STRAIGHT);
-	while (getMotorRunning(left) != 0)
-		displayString(2, "Left encoder: %d", getMotorEncoder(left));
+		setMotorSyncEncoder(left, right, POWER_STRAIGHT, 110, SPEED_STRAIGHT);
+		while (getMotorRunning(left) != 0)
+			displayString(2, "Left encoder: %d", getMotorEncoder(left));
 
-	// Turn right.
-	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 600, SPEED_TURN);
-	bool getLine = false;
-	while (getMotorRunning(left) != 0)
-	{
-		TLegoColors colorRight = getLegoColorFromRGB(sensorColorRight, 3);
-		if(colorRight == colorBlack)
+		// Turn right.
+		setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 600, SPEED_TURN);
+		bool getLine = false;
+		while (getMotorRunning(left) != 0)
 		{
-			getLine = true;
-		}
-		else if(colorRight == colorWhite && getLine)
-		{
+			TLegoColors colorRight = getLegoColorFromRGB(sensorColorRight, 3);
+			if(colorRight == colorBlack)
+			{
+				getLine = true;
+			}
+			else if(colorRight == colorWhite && getLine)
+			{
 				setMotorSync(right, left, 0,0);
 				break;
-		}
+			}
 	}
 
 	currentState = STATE_DEFAULT;
@@ -365,6 +346,8 @@ void raiseBalls()
 	while(getMotorRunning(rotor))
 			displayString(2,"Running");
 
+	sleep(2000);
+
 	dropBalls();
 }
 
@@ -420,36 +403,27 @@ void searchBalls()
 				displayString(4, "Left encoder: %d", getMotorEncoder(left));
 			float distanze = getUSDistance(sensorUltrasonic);
 			if(distanze < 35 )
-				break;
+			{
+				while(distanze > 6)
+				{
+					setMotorSyncEncoder(left, right, POWER_STRAIGHT, 50, SPEED_STRAIGHT);
+					while(getMotorRunning(left) != 0)
+						displayString(4, "drive to ball");
+					distanze = getUSDistance(sensorUltrasonic);
+				}
+				if(checkIsWall())
+				{
+							setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 400, SPEED_TURN);
+							while(getMotorRunning(left) != 0)
+								displayString(4, "Turn around");
+				}
+				else{
+					raiseBalls();
+				}
+			}
 			displayString(9,"Distance: %f", distanze);
 			radius += 20;
 	}
-	driveToNextWall();
-
-	currentState = STATE_END;
-
-	//raiseBalls();
-	/*
-	float distanze = getUSDistance(sensorUltrasonic);
-	if(distanze < 8){
-		// Turn Right.
-		setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 150, SPEED_TURN);
-		while (getMotorRunning(left) != 0)
-			displayString(4, "Left encoder: %d", getMotorEncoder(left));
-
-		distanze = getUSDistance(sensorUltrasonic);
-		displayString(5, "Distance: %d", distanze);
-
-			// Turn left.
-		setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 150, SPEED_TURN);
-		while (getMotorRunning(left) != 0)
-			displayString(4, "Left encoder: %d", getMotorEncoder(left));
-
-		if(distanze > 10){
-			catchBall();
-		}
-	}*/
-	//currentState = STATE_DEFAULT;
 }
 
 void driveToNextWall()
@@ -477,14 +451,32 @@ void driveToNextWall()
 
 bool checkIsWall()
 {
+	bool somethingLeft = false, somethingRight = false;
+
+	// Turn left
 	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 100, SPEED_TURN);
+
 	while (getMotorRunning(left) != 0)
 		displayString(4, "Left encoder: %d", getMotorEncoder(left));
 	sleep(50);
 	float distance2 = getUSDistance(sensorUltrasonic);
-	if(distance2 > 20)
-		return true;
-	return false;
+	somethingLeft = distance2 > 20;
+
+	// Turn right
+	setMotorSyncEncoder(left, right, POWER_TURN_RIGHT, 200, SPEED_TURN);
+
+	while (getMotorRunning(left) != 0)
+		displayString(4, "Left encoder: %d", getMotorEncoder(left));
+	sleep(50);
+	distance2 = getUSDistance(sensorUltrasonic);
+	somethingRight = distance2 > 20;
+
+	// Turn back to origin
+	setMotorSyncEncoder(left, right, POWER_TURN_LEFT, 100, SPEED_TURN);
+	while (getMotorRunning(left) != 0)
+		displayString(4, "Left encoder: %d", getMotorEncoder(left));
+
+	return somethingLeft || somethingRight;
 }
 
 void shiftArray(float* array, const UINT size)
